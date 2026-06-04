@@ -1,13 +1,14 @@
 const serverless = require('serverless-http');
+const app = require('./app');
 const { loadSsmParameters } = require('./config/ssm');
 
 let cachedHandler;
 
 module.exports.handler = async (event, context) => {
-  await loadSsmParameters();
+  context.callbackWaitsForEmptyEventLoop = false;
 
   if (!cachedHandler) {
-    const app = require('./app');
+    await loadSsmParameters();
     cachedHandler = serverless(app);
   }
 

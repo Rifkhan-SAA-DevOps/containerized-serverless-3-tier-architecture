@@ -1,0 +1,18 @@
+# server/.dockerignore
+
+node_modules
+npm-debug.log
+.env
+.env.*
+.git
+.gitignore
+Dockerfile
+README.md
+
+coverage
+.vscode
+.idea
+
+*.zip
+dist
+build
