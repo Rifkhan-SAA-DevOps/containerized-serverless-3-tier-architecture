@@ -31,7 +31,7 @@ const Categories = () => {
         <input placeholder="Category name" value={name} onChange={(e) => setName(e.target.value)} />
         <button className="btn">Add</button>
       </form>
-      {categories.map((cat) => (
+      {(categories || []).map((cat) => (
         <div className="admin-row" key={cat.id}>
           <strong>{cat.name}</strong>
           <button className="danger" onClick={() => remove(cat.id)}>Delete</button>
