@@ -14,12 +14,12 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: weightshop-backend-container-prod
-  LAMBDA_FUNCTION_NAME: weightshop-backend-container-prod
+  ECR_REPOSITORY: serverless-backend
+  LAMBDA_FUNCTION_NAME: containerized-serverless-backend
 
 jobs:
   deploy-backend:
-    name: Build, Push Image to ECR, Update Lambda
+    name: Build, Push to ECR, Update Lambda
     runs-on: ubuntu-latest
 
     steps:
@@ -30,13 +30,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push backend image
+      - name: Build, tag, and push Docker image
         id: build-image
         working-directory: server
         env:
@@ -56,7 +56,7 @@ jobs:
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --image-uri ${{ steps.build-image.outputs.image_uri }}
 
-      - name: Wait for Lambda update
+      - name: Wait for Lambda update to complete
         run: |
           aws lambda wait function-updated \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
