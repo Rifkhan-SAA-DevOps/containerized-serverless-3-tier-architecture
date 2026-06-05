@@ -153,7 +153,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    React[React App] --> APIPath[/api/* Request]
+    React[React App] --> APIPath["/api/* Request"]
     APIPath --> CloudFront[CloudFront API Behavior]
     CloudFront --> APIGW[API Gateway HTTP API]
     APIGW --> Lambda[Lambda Container Image]
@@ -272,36 +272,36 @@ flowchart TD
 
 ## Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React, Vite, JavaScript |
-| Frontend Hosting | Amazon S3 private bucket, Amazon CloudFront |
-| Domain & SSL | Amazon Route 53, AWS Certificate Manager |
-| Backend | Node.js, Express.js, serverless-http |
-| Container | Docker |
-| Container Registry | Amazon ECR |
-| Compute | AWS Lambda Container Image |
-| API Layer | Amazon API Gateway HTTP API |
-| Database | Amazon DynamoDB |
-| Secrets & Config | AWS Systems Manager Parameter Store |
-| Security | IAM roles, JWT, private S3, GitHub OIDC |
-| CI/CD | GitHub Actions |
-| Monitoring | Amazon CloudWatch |
+| Layer              | Technology                                  |
+| ------------------ | ------------------------------------------- |
+| Frontend           | React, Vite, JavaScript                     |
+| Frontend Hosting   | Amazon S3 private bucket, Amazon CloudFront |
+| Domain & SSL       | Amazon Route 53, AWS Certificate Manager    |
+| Backend            | Node.js, Express.js, serverless-http        |
+| Container          | Docker                                      |
+| Container Registry | Amazon ECR                                  |
+| Compute            | AWS Lambda Container Image                  |
+| API Layer          | Amazon API Gateway HTTP API                 |
+| Database           | Amazon DynamoDB                             |
+| Secrets & Config   | AWS Systems Manager Parameter Store         |
+| Security           | IAM roles, JWT, private S3, GitHub OIDC     |
+| CI/CD              | GitHub Actions                              |
+| Monitoring         | Amazon CloudWatch                           |
 
 ---
 
 ## AWS Services Used
 
-| Category | Services |
-|---|---|
-| Frontend Delivery | S3, CloudFront |
-| Domain & HTTPS | Route 53, ACM |
-| Backend API | API Gateway, Lambda |
-| Container Registry | Amazon ECR |
-| Database | DynamoDB |
-| Security | IAM, SSM Parameter Store, JWT |
-| CI/CD | GitHub Actions, OIDC IAM Role |
-| Monitoring | CloudWatch |
+| Category           | Services                      |
+| ------------------ | ----------------------------- |
+| Frontend Delivery  | S3, CloudFront                |
+| Domain & HTTPS     | Route 53, ACM                 |
+| Backend API        | API Gateway, Lambda           |
+| Container Registry | Amazon ECR                    |
+| Database           | DynamoDB                      |
+| Security           | IAM, SSM Parameter Store, JWT |
+| CI/CD              | GitHub Actions, OIDC IAM Role |
+| Monitoring         | CloudWatch                    |
 
 ---
 
@@ -322,13 +322,13 @@ GSI2: GSI2PK + GSI2SK
 
 ### Entity Patterns
 
-| Entity | PK | SK | Purpose |
-|---|---|---|---|
-| User | `USER#userId` | `PROFILE` | User profile and authentication data |
-| Category | `CATEGORY#categoryId` | `METADATA` | Product categories |
-| Product | `PRODUCT#productId` | `METADATA` | Product information |
-| Cart Item | `USER#userId` | `CART#productId` | User cart items |
-| Order | `ORDER#orderId` | `METADATA` | Order data and embedded order items |
+| Entity    | PK                    | SK               | Purpose                              |
+| --------- | --------------------- | ---------------- | ------------------------------------ |
+| User      | `USER#userId`         | `PROFILE`        | User profile and authentication data |
+| Category  | `CATEGORY#categoryId` | `METADATA`       | Product categories                   |
+| Product   | `PRODUCT#productId`   | `METADATA`       | Product information                  |
+| Cart Item | `USER#userId`         | `CART#productId` | User cart items                      |
+| Order     | `ORDER#orderId`       | `METADATA`       | Order data and embedded order items  |
 
 ### DynamoDB Access Patterns
 
@@ -364,47 +364,47 @@ flowchart TD
 
 ### Authentication
 
-| Method | Endpoint | Access |
-|---|---|---|
-| POST | `/api/auth/register` | Public |
-| POST | `/api/auth/login` | Public |
-| GET | `/api/auth/me` | Authenticated |
+| Method | Endpoint             | Access        |
+| ------ | -------------------- | ------------- |
+| POST   | `/api/auth/register` | Public        |
+| POST   | `/api/auth/login`    | Public        |
+| GET    | `/api/auth/me`       | Authenticated |
 
 ### Categories
 
-| Method | Endpoint | Access |
-|---|---|---|
-| GET | `/api/categories` | Public |
-| POST | `/api/categories` | Admin |
-| DELETE | `/api/categories/:id` | Admin |
+| Method | Endpoint              | Access |
+| ------ | --------------------- | ------ |
+| GET    | `/api/categories`     | Public |
+| POST   | `/api/categories`     | Admin  |
+| DELETE | `/api/categories/:id` | Admin  |
 
 ### Products
 
-| Method | Endpoint | Access |
-|---|---|---|
-| GET | `/api/products` | Public |
-| GET | `/api/products/:id` | Public |
-| POST | `/api/products` | Admin |
-| PUT | `/api/products/:id` | Admin |
-| DELETE | `/api/products/:id` | Admin |
+| Method | Endpoint            | Access |
+| ------ | ------------------- | ------ |
+| GET    | `/api/products`     | Public |
+| GET    | `/api/products/:id` | Public |
+| POST   | `/api/products`     | Admin  |
+| PUT    | `/api/products/:id` | Admin  |
+| DELETE | `/api/products/:id` | Admin  |
 
 ### Cart
 
-| Method | Endpoint | Access |
-|---|---|---|
-| GET | `/api/cart` | Authenticated |
-| POST | `/api/cart` | Authenticated |
-| PUT | `/api/cart/:id` | Authenticated |
+| Method | Endpoint        | Access        |
+| ------ | --------------- | ------------- |
+| GET    | `/api/cart`     | Authenticated |
+| POST   | `/api/cart`     | Authenticated |
+| PUT    | `/api/cart/:id` | Authenticated |
 | DELETE | `/api/cart/:id` | Authenticated |
 
 ### Orders
 
-| Method | Endpoint | Access |
-|---|---|---|
-| POST | `/api/orders` | Authenticated |
-| GET | `/api/orders/my-orders` | Authenticated |
-| GET | `/api/orders` | Admin |
-| PUT | `/api/orders/:id/status` | Admin |
+| Method | Endpoint                 | Access        |
+| ------ | ------------------------ | ------------- |
+| POST   | `/api/orders`            | Authenticated |
+| GET    | `/api/orders/my-orders`  | Authenticated |
+| GET    | `/api/orders`            | Admin         |
+| PUT    | `/api/orders/:id/status` | Admin         |
 
 ---
 
@@ -433,18 +433,18 @@ flowchart TD
 
 ### Security Highlights
 
-| Component | Security Approach |
-|---|---|
-| S3 | Private bucket, no public access |
-| CloudFront | Single public entry point with HTTPS |
-| CloudFront OAC | Secure access to private S3 |
-| API Gateway | Public API entry routed through `/api/*` |
-| Lambda | Container image function with IAM execution role |
-| ECR | Stores backend Docker images |
-| DynamoDB | Accessible only through Lambda IAM role |
-| SSM Parameter Store | Stores secrets and production configuration |
-| GitHub Actions | Uses OIDC instead of IAM access keys |
-| Application Auth | JWT authentication and admin-only routes |
+| Component           | Security Approach                                |
+| ------------------- | ------------------------------------------------ |
+| S3                  | Private bucket, no public access                 |
+| CloudFront          | Single public entry point with HTTPS             |
+| CloudFront OAC      | Secure access to private S3                      |
+| API Gateway         | Public API entry routed through `/api/*`         |
+| Lambda              | Container image function with IAM execution role |
+| ECR                 | Stores backend Docker images                     |
+| DynamoDB            | Accessible only through Lambda IAM role          |
+| SSM Parameter Store | Stores secrets and production configuration      |
+| GitHub Actions      | Uses OIDC instead of IAM access keys             |
+| Application Auth    | JWT authentication and admin-only routes         |
 
 ---
 
@@ -535,9 +535,9 @@ serverlessshop/
 
 ## GitHub Actions CI/CD Workflows
 
-| Workflow | Trigger | Deployment |
-|---|---|---|
-| `deploy-frontend.yml` | `client/**` | Build React, upload to S3, invalidate CloudFront |
+| Workflow                       | Trigger     | Deployment                                               |
+| ------------------------------ | ----------- | -------------------------------------------------------- |
+| `deploy-frontend.yml`          | `client/**` | Build React, upload to S3, invalidate CloudFront         |
 | `deploy-backend-container.yml` | `server/**` | Build Docker image, push to ECR, update Lambda image URI |
 
 This keeps deployments efficient because frontend-only changes do not redeploy the backend, and backend-only changes do not rebuild the frontend.
@@ -816,4 +816,3 @@ Fullstack Developer | Cloud & DevOps
 - GitHub: [Rifkhan-SAA-DevOps](https://github.com/Rifkhan-SAA-DevOps)
 - LinkedIn: [mohrifkhan](https://www.linkedin.com/in/mohrifkhan)
 - Portfolio: [Portfolio](https://portfolio.rifkhan.xyz/)
-
