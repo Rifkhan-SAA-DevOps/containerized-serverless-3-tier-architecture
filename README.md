@@ -1,14 +1,20 @@
-# ServerlessShop — Serverless AWS E-Commerce Platform
+# ServerlessShop v2 — AWS Lambda Container Image E-Commerce Platform
 
-A production-style **serverless e-commerce application** built with **React + Vite, Node.js, Express, AWS Lambda, API Gateway, DynamoDB, S3, CloudFront, Route 53, ACM, SSM Parameter Store, IAM, CloudWatch, and GitHub Actions OIDC CI/CD**.
+A production-style **serverless e-commerce application** built with **React + Vite, Node.js, Express, AWS Lambda Container Image, Amazon ECR, API Gateway, DynamoDB, S3, CloudFront, Route 53, ACM, SSM Parameter Store, IAM, CloudWatch, Docker, and GitHub Actions OIDC CI/CD**.
 
-This project demonstrates how a traditional full-stack application can be modernized into a scalable, secure, cost-efficient, and fully serverless AWS architecture.
+This project demonstrates how a traditional full-stack application can be modernized into a scalable, secure, containerized, cost-efficient, and fully serverless AWS architecture.
+
+![Live Application](./docs/images/ds-home-page.png)
 
 ---
 
 ## Live Demo
 
-**Application URL:** `https://serverless.rifkhan.xyz`
+**Application URL:** `https://container-lambda.rifkhan.xyz`
+
+**Health Check:** `https://container-lambda.rifkhan.xyz/api/health`
+
+**ServerlessShop V1 URL:** `https://serverless.rifkhan.xyz`
 
 > Note: AWS resources may be stopped or deleted later to avoid cloud costs, but the full architecture, deployment proof, screenshots, and source code are documented in this repository.
 
@@ -16,7 +22,11 @@ This project demonstrates how a traditional full-stack application can be modern
 
 ## Project Summary
 
-**ServerlessShop** is a full-stack e-commerce platform that supports customer shopping flows and admin management features. The backend was modernized from a MySQL-style application into a serverless AWS backend using **Lambda + API Gateway + DynamoDB**.
+**ServerlessShop v2** is a full-stack e-commerce platform that supports customer shopping flows and admin management features.
+
+This version upgrades the backend from **Lambda ZIP deployment** to **AWS Lambda container image deployment using Amazon ECR**.
+
+The frontend is deployed using a fresh private S3 bucket behind CloudFront, while the backend is deployed as a Docker image stored in ECR and executed by Lambda.
 
 The project includes:
 
@@ -26,16 +36,49 @@ The project includes:
 - Cart management
 - Order creation and order status management
 - Private S3 frontend hosting through CloudFront
-- Serverless Express backend running on AWS Lambda
-- DynamoDB single-table design
+- Serverless Express backend running as a Lambda container image
+- Amazon ECR backend image registry
+- API Gateway HTTP API
+- Existing DynamoDB single-table database
 - SSM Parameter Store for production configuration and secrets
 - GitHub Actions CI/CD using AWS OIDC with no long-lived IAM access keys
+- Separate frontend and backend deployment pipelines
+
+---
+
+## Project Upgrade
+
+### Previous Version
+
+```text
+GitHub Actions
+    ↓
+Install production dependencies
+    ↓
+Create Lambda ZIP package
+    ↓
+Update Lambda ZIP function
+```
+
+### Current Version
+
+```text
+GitHub Actions
+    ↓
+Docker build
+    ↓
+Push image to Amazon ECR
+    ↓
+Update Lambda image URI
+```
+
+This version proves both **serverless architecture** and **container-based deployment** skills.
 
 ---
 
 ## Architecture Diagram
 
-![ServerlessShop AWS Serverless Architecture](./docs/Diagram/Diagram.png)
+![ServerlessShop v2 AWS Architecture](./docs/Diagram/Diagram.png)
 
 ### High-Level Architecture Flow
 
@@ -49,21 +92,24 @@ flowchart TD
     S3 --> FE[React + Vite Static Frontend]
 
     CF -->|/api/* behavior| APIGW[Amazon API Gateway HTTP API]
-    APIGW --> LAMBDA[AWS Lambda Node.js + Express]
-    LAMBDA --> DDB[Amazon DynamoDB Single-Table Design]
+    APIGW --> LAMBDA[AWS Lambda Container Image<br/>Node.js + Express]
+    LAMBDA --> DDB[Existing Amazon DynamoDB<br/>Single-Table Design]
 
     LAMBDA --> SSM[AWS Systems Manager Parameter Store]
     LAMBDA --> CW[Amazon CloudWatch Logs]
 
+    ECR[Amazon ECR<br/>Backend Docker Image Registry] --> LAMBDA
+
     GHA[GitHub Actions] -->|OIDC Assume Role| IAM[AWS IAM Deploy Role]
     IAM -->|Deploy frontend| S3
     IAM -->|Invalidate cache| CF
-    IAM -->|Deploy backend| LAMBDA
+    IAM -->|Push backend image| ECR
+    IAM -->|Update Lambda image| LAMBDA
 ```
 
 ---
 
-## Serverless Architecture
+## Serverless Container Architecture
 
 ```text
 User Browser
@@ -83,9 +129,37 @@ CloudFront HTTPS Distribution
             ↓
         API Gateway HTTP API
             ↓
-        AWS Lambda
+        AWS Lambda Container Image
             ↓
-        Amazon DynamoDB
+        Existing Amazon DynamoDB
+```
+
+---
+
+## Request Flow
+
+### Frontend Request
+
+```mermaid
+flowchart LR
+    Browser[User Browser] --> Domain[Custom Domain]
+    Domain --> Route53[Route 53]
+    Route53 --> CloudFront[CloudFront]
+    CloudFront --> S3[Private S3 Bucket]
+    S3 --> React[React + Vite Frontend]
+```
+
+### API Request
+
+```mermaid
+flowchart LR
+    React[React App] --> APIPath[/api/* Request]
+    APIPath --> CloudFront[CloudFront API Behavior]
+    CloudFront --> APIGW[API Gateway HTTP API]
+    APIGW --> Lambda[Lambda Container Image]
+    Lambda --> DynamoDB[Existing DynamoDB Table]
+    Lambda --> SSM[SSM Parameter Store]
+    Lambda --> Logs[CloudWatch Logs]
 ```
 
 ---
@@ -107,9 +181,10 @@ flowchart TD
     InvalidateCF --> LiveSite[Updated Live Website]
 
     Role --> BEPath{server/** changed?}
-    BEPath -->|Yes| InstallBE[Install Production Dependencies]
-    InstallBE --> ZipBE[Create Lambda ZIP Package]
-    ZipBE --> UpdateLambda[Update Lambda Function Code]
+    BEPath -->|Yes| DockerBuild[Build Docker Image]
+    DockerBuild --> ECRLogin[Login to Amazon ECR]
+    ECRLogin --> PushECR[Push Image to ECR]
+    PushECR --> UpdateLambda[Update Lambda Image URI]
     UpdateLambda --> LiveAPI[Updated Live API]
 ```
 
@@ -119,8 +194,34 @@ flowchart TD
 - No IAM user access keys are stored in GitHub
 - Frontend and backend deploy independently
 - Frontend changes deploy to S3 and invalidate CloudFront
-- Backend changes package the Express API and update Lambda
+- Backend changes build a Docker image, push it to ECR, and update Lambda
 - Path-based workflows reduce unnecessary deployments
+- Backend image tags use GitHub commit SHA for traceability
+
+---
+
+## Visual Deployment Workflow
+
+```mermaid
+flowchart TD
+    A[Code Change] --> B{Changed Folder?}
+
+    B -->|client/**| C[Frontend Workflow]
+    C --> D[npm ci]
+    D --> E[npm run build]
+    E --> F[aws s3 sync dist/]
+    F --> G[CloudFront Invalidation]
+    G --> H[Updated React App]
+
+    B -->|server/**| I[Backend Workflow]
+    I --> J[Docker Build]
+    J --> K[Push Image to ECR]
+    K --> L[Update Lambda Image URI]
+    L --> M[Updated API]
+
+    H --> N[Production Updated]
+    M --> N
+```
 
 ---
 
@@ -153,6 +254,8 @@ flowchart TD
 ### Cloud / DevOps Features
 
 - Serverless Express backend using AWS Lambda
+- Lambda container image deployment
+- Amazon ECR image registry
 - API Gateway HTTP API integration
 - DynamoDB single-table design
 - Private S3 frontend hosting
@@ -163,6 +266,7 @@ flowchart TD
 - IAM least-privilege roles
 - CloudWatch logs and monitoring
 - GitHub Actions CI/CD with OIDC
+- No long-lived AWS credentials
 
 ---
 
@@ -174,7 +278,9 @@ flowchart TD
 | Frontend Hosting | Amazon S3 private bucket, Amazon CloudFront |
 | Domain & SSL | Amazon Route 53, AWS Certificate Manager |
 | Backend | Node.js, Express.js, serverless-http |
-| Compute | AWS Lambda |
+| Container | Docker |
+| Container Registry | Amazon ECR |
+| Compute | AWS Lambda Container Image |
 | API Layer | Amazon API Gateway HTTP API |
 | Database | Amazon DynamoDB |
 | Secrets & Config | AWS Systems Manager Parameter Store |
@@ -191,6 +297,7 @@ flowchart TD
 | Frontend Delivery | S3, CloudFront |
 | Domain & HTTPS | Route 53, ACM |
 | Backend API | API Gateway, Lambda |
+| Container Registry | Amazon ECR |
 | Database | DynamoDB |
 | Security | IAM, SSM Parameter Store, JWT |
 | CI/CD | GitHub Actions, OIDC IAM Role |
@@ -203,13 +310,15 @@ flowchart TD
 ### Table Configuration
 
 ```text
-Table name: serverlessshop-prod
+Table name: weightshop-serverless-prod
 Partition key: PK
 Sort key: SK
 Billing mode: PAY_PER_REQUEST
 GSI1: GSI1PK + GSI1SK
 GSI2: GSI2PK + GSI2SK
 ```
+
+> This v2 deployment reuses the existing DynamoDB table from the previous serverless version.
 
 ### Entity Patterns
 
@@ -304,14 +413,20 @@ flowchart TD
 ```mermaid
 flowchart TD
     Browser[Browser] -->|HTTPS| CloudFront[CloudFront]
-    CloudFront -->|Private origin access| S3[S3 Private Bucket]
+    CloudFront -->|OAC Private Access| S3[S3 Private Bucket]
     CloudFront -->|/api/* HTTPS| APIGW[API Gateway]
-    APIGW --> Lambda[Lambda]
+    APIGW --> Lambda[Lambda Container Image]
     Lambda -->|IAM role only| DynamoDB[DynamoDB]
     Lambda -->|IAM role only| SSM[SSM Parameter Store]
-    GitHub[GitHub Actions] -->|OIDC short-lived token| IAM[IAM Deploy Role]
+    Lambda -->|Logs| CW[CloudWatch Logs]
 
-    S3 -. Block public access .-> PublicAccess[No public bucket access]
+    GitHub[GitHub Actions] -->|OIDC short-lived token| IAM[IAM Deploy Role]
+    IAM -->|Push image| ECR[Amazon ECR]
+    IAM -->|Update image URI| Lambda
+    IAM -->|Sync frontend| S3
+    IAM -->|Invalidate cache| CloudFront
+
+    S3 -. Block Public Access Enabled .-> PublicAccess[No public bucket access]
     JWT[JWT Authentication] --> Lambda
     Admin[Admin Role Authorization] --> Lambda
 ```
@@ -322,8 +437,10 @@ flowchart TD
 |---|---|
 | S3 | Private bucket, no public access |
 | CloudFront | Single public entry point with HTTPS |
+| CloudFront OAC | Secure access to private S3 |
 | API Gateway | Public API entry routed through `/api/*` |
-| Lambda | IAM execution role with least privilege |
+| Lambda | Container image function with IAM execution role |
+| ECR | Stores backend Docker images |
 | DynamoDB | Accessible only through Lambda IAM role |
 | SSM Parameter Store | Stores secrets and production configuration |
 | GitHub Actions | Uses OIDC instead of IAM access keys |
@@ -344,16 +461,30 @@ VITE_API_BASE_URL=/api
 ```env
 NODE_ENV=production
 AWS_REGION=ap-south-1
-SSM_PARAMETER_PREFIX=/serverlessshop
+DYNAMODB_TABLE_NAME=weightshop-serverless-prod
+SSM_PARAMETER_PREFIX=/weightshop/prod
 ```
 
-### SSM Parameter Store
+### SSM Parameter Store Example
 
 ```text
-/serverlessshop/jwt/secret
-/serverlessshop/jwt/expires-in
-/serverlessshop/cors/origin
-/serverlessshop/dynamodb/table-name
+/serverless/JWT_SECRET
+/serverless/JWT_EXPIRES_IN
+/serverless/CORS_ORIGIN
+/serverless/DYNAMODB_TABLE_NAME
+```
+
+---
+
+### Container Image Flow
+
+```mermaid
+flowchart LR
+    Code[Node.js Express Backend] --> Dockerfile[Dockerfile]
+    Dockerfile --> Image[Docker Image]
+    Image --> ECR[Amazon ECR Repository]
+    ECR --> Lambda[Lambda Container Function]
+    Lambda --> APIGW[API Gateway HTTP API]
 ```
 
 ---
@@ -384,41 +515,20 @@ serverlessshop/
 │   │   ├── routes/
 │   │   ├── middleware/
 │   │   └── utils/
+│   ├── Dockerfile
+│   ├── .dockerignore
 │   └── package.json
 │
 ├── .github/
 │   └── workflows/
 │       ├── deploy-frontend.yml
-│       └── deploy-backend.yml
+│       └── deploy-backend-container.yml
 │
 ├── docs/
-│   ├── images/
-│   
+│   ├── Diagram/
+│   └── images/
 │
 └── README.md
-```
----
-
-## Deployment Flow
-
-### Frontend Deployment
-
-```bash
-cd client
-npm run build
-aws s3 sync dist/ s3://YOUR_FRONTEND_BUCKET --delete
-aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
-```
-
-### Backend Deployment
-
-```bash
-cd server
-npm ci --omit=dev
-zip -r serverlessshop-api.zip . -x ".env" "*.zip" "node_modules/.cache/*"
-aws lambda update-function-code \
-  --function-name serverlessshop-api \
-  --zip-file fileb://serverlessshop-api.zip
 ```
 
 ---
@@ -428,42 +538,42 @@ aws lambda update-function-code \
 | Workflow | Trigger | Deployment |
 |---|---|---|
 | `deploy-frontend.yml` | `client/**` | Build React, upload to S3, invalidate CloudFront |
-| `deploy-backend.yml` | `server/**` | Package backend ZIP, update Lambda |
+| `deploy-backend-container.yml` | `server/**` | Build Docker image, push to ECR, update Lambda image URI |
 
 This keeps deployments efficient because frontend-only changes do not redeploy the backend, and backend-only changes do not rebuild the frontend.
 
 ---
 
-## Screenshots 
+## Screenshots
 
 ### Login & Register Pages
 
-![Live Application](./docs/images/serverless-loginpage.png)
-![Live Application](./docs/images/serverless-registerpage.png)
+![Login Page](./docs/images/ds-login-page.png)
+![Register Page](./docs/images/ds-register-page.png)
 
 ### Home Page
 
-![Home Page](./docs/images/serverless-frontpage.png)
+![Home Page](./docs/images/ds-home-page.png)
 
 ### Products Page & Admin Dashboard
 
-![Products Page](./docs/images/serverless-products-page.png)
+![Products Page](./docs/images/ds-admin-page.png)
 
 ### Product Details Page
 
-![Product Details Page](./docs/images/serverless-frontpage-view-page.png)
+![Product Details Page](./docs/images/ds-view-page.png)
 
 ### Cart Page
 
-![Cart Page](./docs/images/serverless-frontpage-cart-page.png)
+![Cart Page](./docs/images/ds-cart-page.png)
 
 ### Checkout / Order Page
 
-![Checkout Order Page](./docs/images/serverless-order-page.png)
+![Checkout Order Page](./docs/images/ds-checkout-page.png)
 
 ### Route 53 Domain
 
-![Route 53 Domain](./docs/images/route53.png)
+![Route 53 Domain](./docs/images/container-route53.png)
 
 ### ACM Certificate
 
@@ -471,78 +581,94 @@ This keeps deployments efficient because frontend-only changes do not redeploy t
 
 ### CloudFront Distribution
 
-![CloudFront Distributions](./docs/images/cloudfront-3.png)
-![Serverless CloudFront Distribution](./docs/images/cloudfront-1.png)
+![CloudFront Distribution](./docs/images/container-cloudfront-1.png)
 
-### CloudFront Error Page
+### CloudFront Behaviors
 
-![CloudFront Error Page](./docs/images/cloudfront-error-pages.png)
+![CloudFront Behaviors](./docs/images/container-cloudfront-3.png)
 
 ### CloudFront Origins
 
-![Cloudfront Origins](./docs/images/cloudfront-apigateway-origin.png)
+![CloudFront Origins](./docs/images/container-cloudfront-2.png)
 
-### CloudFront Invalidation
+### CloudFront Error Pages
 
-![CloudFront Invalidation Details](./docs/images/cloudfront-invalidation.png)
+![CloudFront Error Pages](./docs/images/cloudfront-4.png)
 
 ### CloudFront Invalidations
 
-![CloudFront Invalidations](./docs/images/cloudfront-invalidations.png)
+![CloudFront Invalidations](./docs/images/cloudfront-5.png)
 
 ### S3 Private Bucket
 
-![S3 Private Bucket](./docs/images/s3.png)
-![S3 Cloudfront Permission](./docs/images/s3-clodufront-permission.png)
+![S3 Private Bucket](./docs/images/containerized-serverless-frontend-rifkhan.png)
+
+### S3 CloudFront OAC Permission
+
+![S3 CloudFront Permission](./docs/images/container-oac.png)
+![S3 CloudFront Permission](./docs/images/ds-cloudfront-permission.png)
 
 ### API Gateway HTTP API
 
-![Cloudfront Origins](./docs/images/serverless-apigateway.png)
+![API Gateway HTTP API](./docs/images/containerized-serverless-http-api.png)
 
-### Lambda Function
+### Lambda Container Function
 
-![Lambda Function](./docs/images/serverless-lambda.png)
-![Lambda Configuration](./docs/images/serverless-lambda-config.png)
-![Lambda Permission Role](./docs/images/serverless-lambda-permission-role.png)
+![Lambda Container Function](./docs/images/containerized-serverless-backend-1.png)
 
-### DynamoDB Table
+### Lambda Image Configuration
 
-![DynamoDB Table](./docs/images/dynamodb-1.png)
-![DynamoDB Indexes](./docs/images/dynamodb-2.png)
+![Lambda Container Function](./docs/images/containerized-serverless-backend-config.png)
 
-### DynamoDB Items
+### Lambda Environment Variables
 
-![DynamoDB Items](./docs/images/serverless-dynamodb-datas.png)
+![Lambda Environment Variables](./docs/images/ds-lambda-env-var.png)
+
+### Lambda IAM Role & Permissions
+
+![Lambda IAM Role](./docs/images/containerized-serverless-LambdaExecution-role.png)
+
+### Amazon ECR Repository
+
+![Amazon ECR Images](./docs/images/ds-ecr-repo.png)
+
+### Amazon ECR Images
+
+![Amazon ECR Repository](./docs/images/ds-image.png)
+
+### DynamoDB Table & Data
+
+![DynamoDB Table](./docs/images/serverless-dynamodb-datas.png)
+
+### DynamoDB Indexes
+
+![DynamoDB Indexes](./docs/images/ds-dynamodb-index.png)
 
 ### SSM Parameter Store
 
-![SSM Parameter Store](./docs/images/serverless-acm.png)
+![SSM Parameter Store](./docs/images/serverless-ssm.png)
 
-### IAM Lambda Role
+### IAM GitHub Actions Role
 
-![IAM Lambda Role](./docs/images/serverless-lambda-permission-role.png)
-![IAM Execution role Permission](./docs/images/serverless-lambda-roles.png)
-![IAM Lambda Permission For Dynamodb & SSM](./docs/images/serverless-lambda-ssm-permission.png)
-
-### IAM Github Role
-
-![IAM Github Role & Permissions](./docs/images/serverless-GitHubActionsDeployRole-permissions.png)
+![IAM GitHub Actions Role](./docs/images/ds-githubaction-role.png)
+![IAM GitHub Actions Role](./docs/images/ds-containerized-serverless-GitHubActionsDeployRole-policy.png)
 
 ### IAM Identity Provider
 
-![IAM OIDC](./docs/images/serverless-oidc.png)
+![IAM OIDC Provider](./docs/images/serverless-oidc.png)
 
 ### GitHub CI/CD Actions Frontend Success
 
-![GitHub Actions Frontend Success](./docs/images/serverless-frontend-cicd.png)
-![GitHub Actions Frontend Success](./docs/images/serverless-frontend-cicd-1.png)
-![GitHub Actions Frontend Success](./docs/images/serverless-frontend-cicd-2.png)
+![GitHub Actions Frontend Success](./docs/images/ds-frontend-cicd.png)
+![GitHub Actions Frontend Success](./docs/images/ds-frontend-cicd-1.png)
+![GitHub Actions Frontend Success](./docs/images/ds-frontend-cicd-2.png)
 
 ### GitHub Actions Backend Success
 
-![GitHub Actions Backend Success](./docs/images/serverless-backend-cicd.png)
-![GitHub Actions Backend Success](./docs/images/serverless-backend-cicd-1.png)
-![GitHub Actions Backend Success](./docs/images/serverless-backend-cicd-2.png)
+![GitHub Actions Backend Success](./docs/images/ds-backend-cicd.png)
+![GitHub Actions Backend Details](./docs/images/ds-backend-cicd-1.png)
+![GitHub Actions Backend Details](./docs/images/ds-backend-cicd-2.png)
+![GitHub Actions Backend Details](./docs/images/ds-backend-cicd-3.png)
 
 ---
 
@@ -570,15 +696,56 @@ CloudFront routes `/api/*` to API Gateway, so the browser uses the same domain f
 
 ---
 
-### 3. Deploying Express on Lambda
+### 2. Moving from Lambda ZIP to Lambda container image
 
-The Express app is wrapped with `serverless-http`, allowing the same application structure to run on AWS Lambda behind API Gateway.
+Problem:
+
+The previous backend deployment used a ZIP file, but the goal was to demonstrate Docker and ECR in a serverless backend.
+
+Solution:
+
+The backend was packaged as a Docker image using the AWS Lambda Node.js base image, pushed to Amazon ECR, and deployed to Lambda as a container image.
 
 ---
 
-### 4. Securing CI/CD without IAM access keys
+### 3. Securing private S3 frontend hosting
 
-GitHub Actions uses OIDC to assume an AWS IAM role. This avoids storing long-lived AWS credentials in GitHub secrets.
+Problem:
+
+The frontend should not be served from a public S3 bucket.
+
+Solution:
+
+The S3 bucket was kept private, and CloudFront Origin Access Control was used to allow only CloudFront to read objects from S3.
+
+---
+
+### 4. Routing frontend and backend through one domain
+
+Problem:
+
+The frontend and API should work under one secure domain.
+
+Solution:
+
+CloudFront was configured with two behaviors:
+
+```text
+Default (*)  → Private S3 frontend
+/api/*       → API Gateway backend
+```
+
+---
+
+### 5. Securing CI/CD without IAM access keys
+
+Problem:
+
+Storing AWS access keys in GitHub is not ideal for production-style CI/CD.
+
+Solution:
+
+GitHub Actions uses OIDC to assume an AWS IAM role with short-lived credentials.
 
 ---
 
@@ -589,6 +756,9 @@ This project proves hands-on experience with:
 - Full-stack application deployment on AWS
 - Serverless backend modernization
 - Express.js running on AWS Lambda
+- Lambda container image deployment
+- Docker-based backend packaging
+- Amazon ECR image registry
 - API Gateway HTTP API integration
 - DynamoDB single-table design
 - S3 private frontend hosting
@@ -613,10 +783,12 @@ This project proves hands-on experience with:
 - Add admin analytics dashboard
 - Add automated API tests in GitHub Actions
 - Add WAF protection for CloudFront
+- Add Lambda image vulnerability scanning workflow
+- Add ECR lifecycle policy for old image cleanup
 
 ---
 
-## Professional Summary
+## Summary
 
 This project demonstrates the ability to design, build, migrate, secure, and deploy a real-world serverless e-commerce application on AWS using modern cloud-native and DevOps practices.
 
@@ -627,6 +799,7 @@ The browser uses one secure public domain.
 CloudFront serves the React frontend from private S3.
 CloudFront routes /api/* requests to API Gateway.
 API Gateway invokes Lambda.
+Lambda runs a Docker container image from Amazon ECR.
 Lambda accesses DynamoDB and SSM using IAM roles.
 GitHub Actions deploys through OIDC without static AWS keys.
 ```
@@ -638,5 +811,9 @@ GitHub Actions deploys through OIDC without static AWS keys.
 **Mohammed Rifkhan**
 
 AWS Certified Solutions Architect Associate  
-Fullstack Developer | Cloud & DevOps 
+Fullstack Developer | Cloud & DevOps
+
+- GitHub: [Rifkhan-SAA-DevOps](https://github.com/Rifkhan-SAA-DevOps)
+- LinkedIn: [mohrifkhan](https://www.linkedin.com/in/mohrifkhan)
+- Portfolio: [Portfolio](https://portfolio.rifkhan.xyz/)
 
